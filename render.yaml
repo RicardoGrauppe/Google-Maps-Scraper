@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: google-maps-scraper
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.16
+      - key: GOOGLE_CHROME_BIN
+        value: /opt/render/project/.chrome/chrome
+      - key: CHROMEDRIVER_PATH
+        value: /opt/render/project/.chromedriver/chromedriver
+    disk:
+      name: data
+      mountPath: /opt/render/project/data
+      sizeGB: 1

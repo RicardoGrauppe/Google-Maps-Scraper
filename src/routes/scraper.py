@@ -33,18 +33,50 @@ class GoogleMapsScraper:
         chrome_options.add_argument('--window-size=1920,1080')
         chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument('--disable-extensions')
+        chrome_options.add_argument('--disable-plugins')
+        chrome_options.add_argument('--disable-images')
+        chrome_options.add_argument('--disable-javascript')
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         
-        # Usar o Google Chrome instalado
-        chrome_options.binary_location = '/usr/bin/google-chrome-stable'
+        # Detectar ambiente e configurar Chrome adequadamente
+        import os
+        import platform
         
-        # Usar webdriver-manager para baixar automaticamente o ChromeDriver
-        service = Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        # Para ambientes de produção (Heroku, Render, etc.)
+        if os.environ.get('DYNO') or os.environ.get('RENDER'):
+            chrome_options.binary_location = os.environ.get('GOOGLE_CHROME_BIN', '/app/.chrome-for-testing/chrome-linux64/chrome')
+        elif platform.system() == 'Linux':
+            # Tentar diferentes localizações do Chrome no Linux
+            possible_paths = [
+                '/usr/bin/google-chrome-stable',
+                '/usr/bin/google-chrome',
+                '/usr/bin/chromium-browser',
+                '/usr/bin/chromium'
+            ]
+            for path in possible_paths:
+                if os.path.exists(path):
+                    chrome_options.binary_location = path
+                    break
         
-        # Remover propriedades que indicam automação
-        self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        try:
+            # Usar webdriver-manager para baixar automaticamente o ChromeDriver
+            service = Service(ChromeDriverManager().install())
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            
+            # Remover propriedades que indicam automação
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            
+        except Exception as e:
+            print(f"Erro ao configurar driver: {e}")
+            # Fallback: tentar sem especificar binary_location
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            service = Service(ChromeDriverManager().install())
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
         
         return self.driver
     
